@@ -31,6 +31,10 @@ td .value { font-weight: bold; }
 .cell-tag { font-size: 10px; color: #8b949e; margin-left: 4px; }
 #stats-bar { display: flex; gap: 24px; padding: 6px 16px; background: #161b22; border-top: 1px solid #30363d; font-size: 11px; color: #8b949e; position: fixed; bottom: 0; width: 100%; }
 #stats-bar span.val { color: #58a6ff; }
+.chart-tab { padding: 4px 10px; border-radius: 4px; border: 1px solid #30363d; background: #21262d; color: #8b949e; cursor: pointer; font-family: inherit; font-size: 11px; }
+.chart-tab:hover { background: #30363d; }
+.chart-tab.active { background: #58a6ff; color: #0d1117; border-color: #58a6ff; font-weight: bold; }
+#main-content { height: calc(100vh - 120px); }
 </style>
 </head>
 <body>
@@ -44,6 +48,7 @@ td .value { font-weight: bold; }
   <button class="btn" onclick="cull()">☠ Cull Weak</button>
   <button class="btn" onclick="addEnv()">+ Environment</button>
   <button class="btn" onclick="addAgents()">+ Agents</button>
+  <button class="btn" onclick="toggleCharts()">📊 Charts</button>
   <span style="margin-left:auto;color:#8b949e;font-size:11px">Gen: <span id="gen-count">0</span> | Agents: <span id="agent-count">0</span> | Species: <span id="species-count">0</span></span>
 </div>
 <div id="fx-bar">
@@ -51,9 +56,23 @@ td .value { font-weight: bold; }
   <input id="fx-input" placeholder="=EVOLVE(B2:B100, 50) or =BEST(B:B) or =SPECIES(A:A)" />
   <div id="status">Ready</div>
 </div>
-<div id="grid-container">
+<div id="main-content" style="display:flex;">
+<div id="grid-container" style="flex:1;overflow:auto;">
   <table id="grid"><thead><tr id="header-row"></tr></thead><tbody id="grid-body"></tbody></table>
+</div><!-- /grid-container -->
+
+<!-- Charts Panel -->
+<div id="charts-panel" style="display:none;width:440px;border-left:1px solid #30363d;background:#0d1117;overflow-y:auto;padding:8px;">
+  <div id="charts-tabs" style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+    <button class="chart-tab active" data-tab="heatmap" onclick="switchChartTab('heatmap')">Heatmap</button>
+    <button class="chart-tab" data-tab="dendrogram" onclick="switchChartTab('dendrogram')">Dendrogram</button>
+    <button class="chart-tab" data-tab="entropy" onclick="switchChartTab('entropy')">Entropy</button>
+    <button class="chart-tab" data-tab="pareto" onclick="switchChartTab('pareto')">Pareto</button>
+    <button class="chart-tab" data-tab="species" onclick="switchChartTab('species')">Species</button>
+  </div>
+  <canvas id="chart-canvas" width="420" height="320" style="border:1px solid #21262d;border-radius:4px;width:100%;"></canvas>
 </div>
+</div><!-- /main-content -->
 <div id="stats-bar">
   <div>Best: <span class="val" id="s-best">—</span></div>
   <div>Worst: <span class="val" id="s-worst">—</span></div>
@@ -63,6 +82,7 @@ td .value { font-weight: bold; }
 </div>
 
 <script src="formulas.js"></script>
+<script src="visualizations.js"></script>
 <script>
 // Ternary agent core — runs in browser, no server needed
 class TernaryAgent {
@@ -93,18 +113,11 @@ let envs = [];
 let outcomes = []; // envs × agents → avg outcome
 let generation = 0;
 let selectedCell = null;
+let genHistory = []; // tracks per-generation snapshots
+let chartsOpen = false;
+let chartsActiveTab = 'heatmap';
 
-function init() {
-  // 20 agents, 5 environments
-  agents = Array.from({length:20}, () => new TernaryAgent());
-  envs = [
-    new Environment('Market₁'), new Environment('Market₂'),
-    new Environment('Negotiate'), new Environment('Navigate'),
-    new Environment('Ecology')
-  ];
-  computeOutcomes();
-  render();
-}
+function _removedOldInit() {}
 
 function computeOutcomes() {
   outcomes = [];
@@ -205,7 +218,9 @@ function evolve() {
   
   generation++;
   computeOutcomes();
+  snapshotGen();
   render();
+  if (chartsOpen) renderActiveChart();
   setStatus(`Evolved gen ${generation}. ${survivors.length} survived, ${children.length} born.`);
 }
 
@@ -217,6 +232,7 @@ function mutate() {
   }
   computeOutcomes();
   render();
+  if (chartsOpen) renderActiveChart();
   setStatus(`Mutated ${count} agents.`);
 }
 
@@ -241,6 +257,7 @@ function cull() {
   agents = avgs.slice(0, Math.ceil(avgs.length * 0.75)).map(a => a.agent);
   computeOutcomes();
   render();
+  if (chartsOpen) renderActiveChart();
   setStatus(`Culled weakest 25%. ${agents.length} survivors.`);
 }
 
@@ -250,6 +267,7 @@ function addEnv() {
   envs.push(new Environment(name));
   computeOutcomes();
   render();
+  if (chartsOpen) renderActiveChart();
   setStatus(`Added environment: ${name}`);
 }
 
@@ -257,6 +275,7 @@ function addAgents() {
   for (let i = 0; i < 10; i++) agents.push(new TernaryAgent());
   computeOutcomes();
   render();
+  if (chartsOpen) renderActiveChart();
   setStatus(`Added 10 agents. Total: ${agents.length}`);
 }
 
@@ -270,7 +289,96 @@ function setStatus(msg) {
   document.getElementById('status').textContent = msg;
 }
 
-// Init
+// ── Charts Panel ────────────────────────────────────────────────────
+
+function toggleCharts() {
+  chartsOpen = !chartsOpen;
+  document.getElementById('charts-panel').style.display = chartsOpen ? 'block' : 'none';
+  if (chartsOpen) renderActiveChart();
+}
+
+function switchChartTab(tab) {
+  chartsActiveTab = tab;
+  document.querySelectorAll('.chart-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  renderActiveChart();
+}
+
+function computeEntropy() {
+  const counts = {};
+  agents.forEach(a => { const k = a.toString(); counts[k] = (counts[k]||0)+1; });
+  const total = agents.length;
+  let ent = 0;
+  for (const k in counts) { const p = counts[k]/total; if(p>0) ent -= p*Math.log2(p); }
+  return ent;
+}
+
+function countSpecies() {
+  return new Set(agents.map(a => a.toString())).size;
+}
+
+function snapshotGen() {
+  const ent = computeEntropy();
+  const sp = countSpecies();
+  genHistory.push({ gen: generation, entropy: ent, species: sp });
+}
+
+function renderActiveChart() {
+  const canvas = document.getElementById('chart-canvas');
+  if (!canvas) return;
+  // Size canvas to panel
+  const panel = document.getElementById('charts-panel');
+  canvas.width = panel.clientWidth - 16 || 420;
+  canvas.height = 320;
+
+  if (!window.SIVis) return;
+
+  switch (chartsActiveTab) {
+    case 'heatmap': {
+      const viz = new SIVis.FitnessHeatmap(canvas);
+      viz.render(agents, envs, outcomes);
+      break;
+    }
+    case 'dendrogram': {
+      const viz = new SIVis.SpeciesDendrogram(canvas);
+      viz.render(agents);
+      break;
+    }
+    case 'entropy': {
+      const viz = new SIVis.EntropyChart(canvas);
+      viz.setData(genHistory);
+      break;
+    }
+    case 'pareto': {
+      const viz = new SIVis.ParetoScatter(canvas);
+      const e1 = 0, e2 = Math.min(1, envs.length - 1);
+      viz.render(agents, outcomes, e1, e2);
+      break;
+    }
+    case 'species': {
+      const viz = new SIVis.SpeciesPie(canvas);
+      viz.render(agents);
+      break;
+    }
+  }
+}
+
+// ── Init ────────────────────────────────────────────────────────────
+
+function init() {
+  // 20 agents, 5 environments
+  agents = Array.from({length:20}, () => new TernaryAgent());
+  envs = [
+    new Environment('Market₁'), new Environment('Market₂'),
+    new Environment('Negotiate'), new Environment('Navigate'),
+    new Environment('Ecology')
+  ];
+  computeOutcomes();
+  snapshotGen();
+  render();
+}
+
 init();
 </script>
 </body>
