@@ -1,0 +1,169 @@
+{
+  "history": [
+    {
+      "round": 0,
+      "fitness": 0.3,
+      "species": 10,
+      "avoidance_ratio": 1.0,
+      "shape": {
+        "alignment": 0.96,
+        "polarity": 0.351,
+        "volume": 0.351
+      }
+    },
+    {
+      "round": 20,
+      "fitness": 0.3,
+      "species": 1,
+      "avoidance_ratio": 1.0,
+      "shape": {
+        "alignment": 1.0,
+        "polarity": 1.0,
+        "volume": 1.0
+      }
+    },
+    {
+      "round": 40,
+      "fitness": 0.3,
+      "species": 1,
+      "avoidance_ratio": 1.0,
+      "shape": {
+        "alignment": 1.0,
+        "polarity": 1.0,
+        "volume": 1.0
+      }
+    },
+    {
+      "round": 60,
+      "fitness": 0.3,
+      "species": 1,
+      "avoidance_ratio": 1.0,
+      "shape": {
+        "alignment": 1.0,
+        "polarity": 1.0,
+        "volume": 1.0
+      }
+    },
+    {
+      "round": 80,
+      "fitness": 0.3,
+      "species": 1,
+      "avoidance_ratio": 1.0,
+      "shape": {
+        "alignment": 1.0,
+        "polarity": 1.0,
+        "volume": 1.0
+      }
+    }
+  ],
+  "final_profile": {
+    "avoid": [
+      0.954,
+      0.954,
+      0.954,
+      0.947
+    ],
+    "choose": [
+      0.019,
+      0.031,
+      0.017,
+      0.021
+    ],
+    "unknown": [
+      0.027,
+      0.015,
+      0.029,
+      0.032
+    ]
+  },
+  "final_shape": {
+    "alignment": 0.997,
+    "polarity": 0.93,
+    "volume": 0.952
+  },
+  "species_count": 9,
+  "top_species": [
+    [
+      [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      809
+    ],
+    [
+      [
+        -1,
+        -1,
+        -1,
+        0
+      ],
+      32
+    ],
+    [
+      [
+        -1,
+        1,
+        -1,
+        -1
+      ],
+      31
+    ],
+    [
+      [
+        -1,
+        -1,
+        0,
+        -1
+      ],
+      29
+    ],
+    [
+      [
+        0,
+        -1,
+        -1,
+        -1
+      ],
+      27
+    ],
+    [
+      [
+        -1,
+        -1,
+        -1,
+        1
+      ],
+      21
+    ],
+    [
+      [
+        1,
+        -1,
+        -1,
+        -1
+      ],
+      19
+    ],
+    [
+      [
+        -1,
+        -1,
+        1,
+        -1
+      ],
+      17
+    ],
+    [
+      [
+        -1,
+        0,
+        -1,
+        -1
+      ],
+      15
+    ]
+  ],
+  "thesis": "Intelligence = the shape of what's avoided. Not what's chosen."
+}
