@@ -1,0 +1,60 @@
+{
+  "exp4_population_vs_individual": {
+    "individual_fitness": 0.4,
+    "population_fitness": 0.475,
+    "advantage": 0.075
+  },
+  "exp5_conservation": [
+    {
+      "n": 10,
+      "avoid": 0.125,
+      "choose": 0.0,
+      "neutral": 0.875,
+      "ratio": 0.992
+    },
+    {
+      "n": 50,
+      "avoid": 0.18,
+      "choose": 0.0,
+      "neutral": 0.82,
+      "ratio": 0.994
+    },
+    {
+      "n": 100,
+      "avoid": 0.188,
+      "choose": 0.0,
+      "neutral": 0.812,
+      "ratio": 0.995
+    },
+    {
+      "n": 500,
+      "avoid": 0.184,
+      "choose": 0.0,
+      "neutral": 0.816,
+      "ratio": 0.995
+    },
+    {
+      "n": 1000,
+      "avoid": 0.177,
+      "choose": 0.0,
+      "neutral": 0.823,
+      "ratio": 0.994
+    },
+    {
+      "n": 5000,
+      "avoid": 0.179,
+      "choose": 0.0,
+      "neutral": 0.821,
+      "ratio": 0.994
+    }
+  ],
+  "conservation_std": 0.001,
+  "conserved": true,
+  "five_laws": [
+    "1. Negative space discovers hidden structure (v5: Act0 60% avoid, Act3 58% avoid)",
+    "2. Avoidance dominates choice (294:1 ratio in balanced learning)",
+    "3. Strategy species coexist stably (Lotka-Volterra, all 5 survive)",
+    "4. Population intelligence > individual (+0.075)",
+    "5. Avoidance ratio conserved across scales (std=0.001)"
+  ]
+}
