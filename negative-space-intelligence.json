@@ -1,0 +1,45 @@
+{
+  "n_agents": 500,
+  "n_envs": 20,
+  "rounds": 20,
+  "final_profile": {
+    "avoid": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "neutral": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "choose": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "entropy": -5.770780640743807e-10
+  },
+  "final_shape": {
+    "alignment": 1.0,
+    "polarity": 0.0,
+    "autocorrelation": 0,
+    "negative_volume": 0.0
+  },
+  "species_count": 1,
+  "top_strategies": [
+    [
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      500
+    ]
+  ],
+  "thesis": "Intelligence = the shape of what's avoided. Not what's chosen."
+}
