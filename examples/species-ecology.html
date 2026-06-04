@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperInstance — Species Ecology</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Cascadia Code', monospace; background: #0d1117; color: #c9d1d9; }
+#toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #161b22; border-bottom: 1px solid #30363d; }
+#toolbar h1 { font-size: 14px; color: #58a6ff; margin-right: 16px; }
+.btn { padding: 4px 12px; border-radius: 4px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; font-family: inherit; font-size: 12px; }
+.btn:hover { background: #30363d; }
+.btn.primary { background: #238636; border-color: #238636; color: white; }
+#content { padding: 16px; max-width: 800px; margin: 0 auto; }
+h2 { color: #58a6ff; font-size: 14px; margin: 16px 0 8px; }
+p { font-size: 12px; line-height: 1.6; margin-bottom: 8px; }
+pre { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 12px; font-size: 11px; overflow-x: auto; margin: 8px 0; }
+canvas { border: 1px solid #21262d; border-radius: 6px; margin: 8px 0; }
+.sp0 { color: #58a6ff; } .sp1 { color: #f0883e; } .sp2 { color: #3fb950; } .sp3 { color: #bc8cff; } .sp4 { color: #f85149; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h1>⬡ Species Ecology Demo</h1>
+  <button class="btn primary" onclick="runRound()">▶ Evolve Round</button>
+  <button class="btn" onclick="runMany(20)">⚡ 20 Rounds</button>
+  <button class="btn" onclick="reset()">↺ Reset</button>
+</div>
+<div id="content">
+  <h2>🌍 Five Species, One Ecosystem</h2>
+  <p>Five distinct ternary strategies compete across multiple environments. Watch which species survive and which go extinct.</p>
+  <canvas id="chart" width="760" height="300"></canvas>
+  <div id="log"></div>
+</div>
+<script>
+const SPECIES = [
+  { name: 'Avoider',    w: [-1,-1,-1,-1], color: '#58a6ff' },
+  { name: 'Seeker',     w: [+1,+1,+1,+1], color: '#f0883e' },
+  { name: 'Balanced',   w: [0,0,0,0],     color: '#3fb950' },
+  { name: 'Specialist', w: [+1,-1,0,+1],  color: '#bc8cff' },
+  { name: 'Rebel',      w: [-1,+1,-1,+1], color: '#f85149' },
+];
+
+class Agent {
+  constructor(w, species) { this.w = w; this.species = species; }
+  bestAction() { let s=this.w.map(x=>(x+1)/2*0.6+0.2); return s.indexOf(Math.max(...s)); }
+  mutate() {
+    let c=[...this.w]; let idx=Math.floor(Math.random()*4);
+    // Slight drift: nudge toward neighbor value
+    c[idx] = Math.max(-1, Math.min(1, c[idx] + [-1,0,1][Math.floor(Math.random()*3)]));
+    return new Agent(c, this.species);
+  }
+  toString() { return `[${this.w.join(',')}]`; }
+}
+
+class Env {
+  constructor(name) { this.name=name; this.rewards=Array.from({length:4},()=>Math.random()*0.8+0.1); }
+  evaluate(a) { return this.rewards[a.bestAction()]; }
+}
+
+let agents, envs, gen, history;
+
+function reset() {
+  gen = 0;
+  history = [];
+  // 10 agents per species = 50 total
+  agents = [];
+  SPECIES.forEach((sp, si) => {
+    for (let i = 0; i < 10; i++) {
+      let w = [...sp.w];
+      // Small individual variation
+      if (i > 0) { let idx = Math.floor(Math.random()*4); w[idx] = [-1,0,1][Math.floor(Math.random()*3)]; }
+      agents.push(new Agent(w, si));
+    }
+  });
+  envs = [new Env('Forest'), new Env('Ocean'), new Env('Desert'), new Env('Tundra')];
+  document.getElementById('log').innerHTML = '';
+  snapshot();
+  render();
+  log('Reset. 5 species × 10 agents = 50 total. 4 environments.');
+}
+
+function fitness(agent) {
+  return envs.reduce((s,e) => s + e.evaluate(agent), 0) / envs.length;
+}
+
+function snapshot() {
+  let counts = new Array(5).fill(0);
+  agents.forEach(a => counts[a.species]++);
+  history.push({ gen, counts: [...counts] });
+}
+
+function log(msg) {
+  document.getElementById('log').innerHTML += `<p>${msg}</p>`;
+}
+
+function runRound() {
+  // Evaluate + select top 60% + fill with mutated children
+  let scored = agents.map((a,i) => ({agent:a, score:fitness(a)}));
+  scored.sort((a,b) => b.score - a.score);
+  let keep = Math.ceil(scored.length * 0.6);
+  let survivors = scored.slice(0, keep).map(s => s.agent);
+  let births = scored.slice(keep).map(s => s.agent.mutate());
+  agents = [...survivors, ...births];
+  gen++;
+  snapshot();
+  render();
+
+  let counts = new Array(5).fill(0);
+  agents.forEach(a => counts[a.species]++);
+  let dominant = counts.indexOf(Math.max(...counts));
+  log(`Gen ${gen}: <span class="sp${dominant}">${SPECIES[dominant].name} dominates (${counts[dominant]}/${agents.length})</span> — Diversity: ${counts.filter(c=>c>0).length}/5 species`);
+}
+
+function runMany(n) { for (let i = 0; i < n; i++) runRound(); }
+
+function render() {
+  let canvas = document.getElementById('chart');
+  let ctx = canvas.getContext('2d');
+  let W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!history.length) return;
+
+  let pad = 50, padR = 20, padT = 20, padB = 30;
+  let maxGen = Math.max(20, history[history.length-1].gen);
+  let maxPop = 50;
+
+  // Grid
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 5; i++) {
+    let y = padT + (H - padT - padB) * i / 5;
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxPop * (1 - i/5)), pad - 6, y + 4);
+  }
+  ctx.fillText('Gen', W / 2, H - 4);
+
+  // Lines per species
+  SPECIES.forEach((sp, si) => {
+    ctx.strokeStyle = sp.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    history.forEach((h, i) => {
+      let x = pad + (W - pad - padR) * h.gen / maxGen;
+      let y = padT + (H - padT - padB) * (1 - h.counts[si] / maxPop);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  });
+
+  // Legend
+  ctx.font = '11px monospace'; ctx.textAlign = 'left';
+  SPECIES.forEach((sp, si) => {
+    let x = pad + si * 140, y = H - 8;
+    ctx.fillStyle = sp.color;
+    ctx.fillRect(x, y - 8, 10, 10);
+    ctx.fillStyle = '#c9d1d9';
+    ctx.fillText(`${sp.name} [${sp.w.join(',')}]`, x + 14, y);
+  });
+}
+
+reset();
+</script>
+</body>
+</html>

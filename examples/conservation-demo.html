@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperInstance — Conservation Law Demo</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Cascadia Code', monospace; background: #0d1117; color: #c9d1d9; }
+#toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #161b22; border-bottom: 1px solid #30363d; }
+#toolbar h1 { font-size: 14px; color: #58a6ff; margin-right: 16px; }
+.btn { padding: 4px 12px; border-radius: 4px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; font-family: inherit; font-size: 12px; }
+.btn:hover { background: #30363d; }
+.btn.primary { background: #238636; border-color: #238636; color: white; }
+#content { padding: 16px; max-width: 800px; margin: 0 auto; }
+h2 { color: #58a6ff; font-size: 14px; margin: 16px 0 8px; }
+h3 { color: #8b949e; font-size: 12px; margin: 12px 0 6px; }
+p { font-size: 12px; line-height: 1.6; margin-bottom: 8px; }
+pre { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 12px; font-size: 11px; overflow-x: auto; margin: 8px 0; }
+canvas { border: 1px solid #21262d; border-radius: 6px; margin: 8px 0; }
+.conserve { color: #3fb950; font-weight: bold; }
+.warn { color: #f0883e; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h1>⬡ Conservation Law Demo</h1>
+  <button class="btn primary" onclick="runEvolution()">▶ Evolve</button>
+  <button class="btn" onclick="runMany(50)">⚡ 50 Gens</button>
+  <button class="btn" onclick="reset()">↺ Reset</button>
+</div>
+<div id="content">
+  <h2>⚖️ The Conservation Law</h2>
+  <p>For any ternary strategy, the fractions of {avoid, neutral, choose} must sum to 1.</p>
+  <pre>  f(avoid) + f(neutral) + f(choose) = 1.0   ← ALWAYS</pre>
+  <p>Evolution can change <em>which</em> strategy wins, but it cannot break the conservation law. Let's prove it.</p>
+  <canvas id="chart" width="760" height="320"></canvas>
+  <div id="log"></div>
+</div>
+<script>
+const TERNARY_VALUES = [-1, 0, 1]; // avoid, neutral, choose
+
+class Agent {
+  constructor(w) { this.w = w || this.random(); }
+  random() { return Array.from({length:4}, () => [-1,0,1][Math.floor(Math.random()*3)]); }
+  bestAction() { let s=this.w.map(x=>(x+1)/2*0.6+0.2); return s.indexOf(Math.max(...s)); }
+  mutate() { let c=[...this.w]; c[Math.floor(Math.random()*4)]=[-1,0,1][Math.floor(Math.random()*3)]; return new Agent(c); }
+  toString() { return `[${this.w.join(',')}]`; }
+
+  fractions() {
+    let avoid = this.w.filter(v => v === -1).length / 4;
+    let neutral = this.w.filter(v => v === 0).length / 4;
+    let choose = this.w.filter(v => v === +1).length / 4;
+    return { avoid, neutral, choose, sum: avoid + neutral + choose };
+  }
+}
+
+class Env {
+  constructor(name) { this.name=name; this.rewards=Array.from({length:4},()=>Math.random()*0.8+0.1); }
+  evaluate(a) { return this.rewards[a.bestAction()]; }
+}
+
+let agents, envs, gen, history;
+
+function reset() {
+  gen = 0;
+  history = [];
+  agents = Array.from({length:50}, () => new Agent());
+  envs = [new Env('Arena₁'), new Env('Arena₂'), new Env('Arena₃'), new Env('Arena₄')];
+  document.getElementById('log').innerHTML = '';
+  snapshot();
+  render();
+  log('Reset. 50 random agents. Conservation law: avoid + neutral + choose = 1.0');
+}
+
+function fitness(agent) {
+  return envs.reduce((s,e) => s + e.evaluate(agent), 0) / envs.length;
+}
+
+function snapshot() {
+  let totalAvoid = 0, totalNeutral = 0, totalChoose = 0;
+  let violations = 0;
+  agents.forEach(a => {
+    let f = a.fractions();
+    totalAvoid += f.avoid;
+    totalNeutral += f.neutral;
+    totalChoose += f.choose;
+    if (Math.abs(f.sum - 1.0) > 0.001) violations++;
+  });
+  let n = agents.length;
+  history.push({
+    gen,
+    avoid: totalAvoid / n,
+    neutral: totalNeutral / n,
+    choose: totalChoose / n,
+    sum: (totalAvoid + totalNeutral + totalChoose) / n,
+    violations
+  });
+}
+
+function log(msg) {
+  document.getElementById('log').innerHTML += `<p>${msg}</p>`;
+}
+
+function runEvolution() {
+  let scored = agents.map(a => ({agent:a, score:fitness(a)}));
+  scored.sort((a,b) => b.score - a.score);
+  let survivors = scored.slice(0, 25).map(s => s.agent);
+  let children = survivors.map(a => a.mutate());
+  agents = [...survivors, ...children];
+  gen++;
+  snapshot();
+  render();
+
+  let h = history[history.length - 1];
+  let check = h.sum === 1.0 ? '<span class="conserve">✓ CONSERVED (sum = 1.000)</span>' : `<span class="warn">✗ VIOLATION (sum = ${h.sum.toFixed(3)})</span>`;
+  log(`Gen ${gen}: avoid=${h.avoid.toFixed(3)} neutral=${h.neutral.toFixed(3)} choose=${h.choose.toFixed(3)} → ${check} (${h.violations} violations)`);
+}
+
+function runMany(n) { for (let i = 0; i < n; i++) runEvolution(); }
+
+function render() {
+  let canvas = document.getElementById('chart');
+  let ctx = canvas.getContext('2d');
+  let W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!history.length) return;
+
+  let pad = 50, padR = 20, padT = 20, padB = 40;
+  let maxGen = Math.max(10, history[history.length-1].gen);
+  let plotW = W - pad - padR, plotH = H - padT - padB;
+
+  // Grid
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 10; i++) {
+    let y = padT + plotH * i / 10;
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
+    ctx.fillText((1 - i/10).toFixed(1), pad - 6, y + 4);
+  }
+
+  // Stacked area: avoid (bottom), neutral (middle), choose (top)
+  const colors = { avoid: '#f85149', neutral: '#484f58', choose: '#3fb950' };
+
+  history.forEach((h, i) => {
+    let x = pad + plotW * h.gen / maxGen;
+    let barW = Math.max(2, plotW / maxGen);
+
+    let yAvoid = padT + plotH * (1 - h.avoid);
+    let yNeutral = padT + plotH * (1 - h.avoid - h.neutral);
+    let yChoose = padT + plotH * (1 - h.avoid - h.neutral - h.choose);
+
+    ctx.fillStyle = colors.avoid;
+    ctx.fillRect(x - barW/2, yAvoid, barW, padT + plotH - yAvoid);
+    ctx.fillStyle = colors.neutral;
+    ctx.fillRect(x - barW/2, yNeutral, barW, yAvoid - yNeutral);
+    ctx.fillStyle = colors.choose;
+    ctx.fillRect(x - barW/2, yChoose, barW, yNeutral - yChoose);
+  });
+
+  // 1.0 line
+  ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(pad, padT); ctx.lineTo(W - padR, padT); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Legend
+  ctx.font = '11px monospace'; ctx.textAlign = 'left';
+  let labels = [
+    { label: 'avoid (-1)', color: colors.avoid },
+    { label: 'neutral (0)', color: colors.neutral },
+    { label: 'choose (+1)', color: colors.choose },
+    { label: 'sum = 1.0 (conserved)', color: '#58a6ff' },
+  ];
+  labels.forEach((l, i) => {
+    let x = pad + i * 175, y = H - 10;
+    ctx.fillStyle = l.color;
+    ctx.fillRect(x, y - 8, 10, 10);
+    ctx.fillStyle = '#c9d1d9';
+    ctx.fillText(l.label, x + 14, y);
+  });
+}
+
+reset();
+</script>
+</body>
+</html>

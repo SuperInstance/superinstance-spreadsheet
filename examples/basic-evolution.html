@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperInstance — Basic Evolution</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Cascadia Code', monospace; background: #0d1117; color: #c9d1d9; }
+#toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #161b22; border-bottom: 1px solid #30363d; }
+#toolbar h1 { font-size: 14px; color: #58a6ff; margin-right: 16px; }
+.btn { padding: 4px 12px; border-radius: 4px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; font-family: inherit; font-size: 12px; }
+.btn:hover { background: #30363d; }
+.btn.primary { background: #238636; border-color: #238636; color: white; }
+#log { padding: 16px; max-width: 720px; margin: 0 auto; }
+#log h2 { color: #58a6ff; font-size: 14px; margin: 16px 0 8px; }
+#log p { font-size: 12px; line-height: 1.6; margin-bottom: 8px; }
+#log pre { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 12px; font-size: 11px; overflow-x: auto; margin: 8px 0; }
+.highlight { color: #3fb950; }
+.dim { color: #8b949e; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h1>⬡ Basic Evolution Demo</h1>
+  <button class="btn primary" onclick="runEvolution()">▶ Run Evolution</button>
+  <button class="btn" onclick="reset()">↺ Reset</button>
+</div>
+<div id="log">
+  <h2>👋 Welcome</h2>
+  <p>This demo shows <strong>10 agents</strong> evolving under natural selection across 3 environments.</p>
+  <p>Each agent has 4 ternary weights {-1, 0, +1}. There are only 3⁴ = <strong>81 possible strategies</strong>.</p>
+  <p>Press <strong>▶ Run Evolution</strong> to watch them compete.</p>
+  <div id="output"></div>
+</div>
+<script>
+class Agent {
+  constructor(w) { this.w = w || this.random(); }
+  random() { return Array.from({length:4}, () => [-1,0,1][Math.floor(Math.random()*3)]); }
+  bestAction() { let s=this.w.map(x=>(x+1)/2*0.6+0.2); return s.indexOf(Math.max(...s)); }
+  mutate() { let c=[...this.w]; c[Math.floor(Math.random()*4)]=[-1,0,1][Math.floor(Math.random()*3)]; return new Agent(c); }
+  toString() { return `[${this.w.join(',')}]`; }
+}
+class Env {
+  constructor(name) { this.name=name; this.rewards=Array.from({length:4},()=>Math.random()*0.8+0.1); }
+  evaluate(a) { return this.rewards[a.bestAction()]; }
+}
+
+let agents, envs, gen;
+
+function reset() {
+  agents = Array.from({length:10}, () => new Agent());
+  envs = [new Env('Market'), new Env('Hunt'), new Env('Trade')];
+  gen = 0;
+  document.getElementById('output').innerHTML = '';
+  log('Reset. 10 agents, 3 environments. Ready to evolve.');
+}
+
+function fitness(agent) {
+  return envs.reduce((s,e) => s + e.evaluate(agent), 0) / envs.length;
+}
+
+function log(msg) {
+  document.getElementById('output').innerHTML += `<p>${msg}</p>`;
+}
+
+function logPre(text) {
+  document.getElementById('output').innerHTML += `<pre>${text}</pre>`;
+}
+
+function runEvolution() {
+  if (!agents) reset();
+  log(`<h2>Generation ${gen}</h2>`);
+
+  // Show current population
+  let lines = ['Agent  Strategy        Fitness'];
+  lines.push('─'.repeat(40));
+  agents.forEach((a, i) => {
+    let f = fitness(a);
+    let bar = '█'.repeat(Math.round(f * 20));
+    lines.push(`${String(i+1).padStart(3)}    ${a.toString().padEnd(16)} ${f.toFixed(3)}  ${bar}`);
+  });
+  logPre(lines.join('\n'));
+
+  // Selection
+  let scored = agents.map((a,i) => ({agent:a, score:fitness(a)}));
+  scored.sort((a,b) => b.score - a.score);
+  let survivors = scored.slice(0, 5).map(s => s.agent);
+  let children = survivors.map(a => a.mutate());
+  agents = [...survivors, ...children];
+
+  let best = scored[0];
+  let worst = scored[scored.length-1];
+  log(`<span class="highlight">★ Best: ${best.agent.toString()} → ${best.score.toFixed(3)}</span>`);
+  log(`<span class="dim">✗ Worst: ${worst.agent.toString()} → ${worst.score.toFixed(3)} — eliminated</span>`);
+  log(`5 survived, 5 children born. Population: ${agents.length}`);
+
+  gen++;
+
+  // Species count
+  let unique = new Set(agents.map(a => a.toString())).size;
+  log(`Species diversity: ${unique} unique strategies`);
+}
+
+reset();
+</script>
+</body>
+</html>
