@@ -1,0 +1,55 @@
+{
+  "exhaustive_top5": [
+    {
+      "strategy": [
+        0,
+        -1,
+        1,
+        0
+      ],
+      "avg": 0.513
+    },
+    {
+      "strategy": [
+        -1,
+        0,
+        1,
+        0
+      ],
+      "avg": 0.513
+    },
+    {
+      "strategy": [
+        -1,
+        0,
+        1,
+        1
+      ],
+      "avg": 0.513
+    },
+    {
+      "strategy": [
+        -1,
+        -1,
+        0,
+        0
+      ],
+      "avg": 0.513
+    },
+    {
+      "strategy": [
+        -1,
+        -1,
+        0,
+        -1
+      ],
+      "avg": 0.513
+    }
+  ],
+  "final_fitness": 0.511,
+  "final_species": 68,
+  "avoidance_ratio": 0.534,
+  "avoid_pct": 0.36,
+  "choose_pct": 0.313,
+  "thesis": "Intelligence = the shape of what's avoided"
+}
