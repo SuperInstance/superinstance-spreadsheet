@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperInstance Spreadsheet</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Cascadia Code', monospace; background: #0d1117; color: #c9d1d9; overflow: hidden; height: 100vh; }
+#toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #161b22; border-bottom: 1px solid #30363d; }
+#toolbar h1 { font-size: 14px; color: #58a6ff; margin-right: 16px; }
+.btn { padding: 4px 12px; border-radius: 4px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; font-family: inherit; font-size: 12px; }
+.btn:hover { background: #30363d; }
+.btn.primary { background: #238636; border-color: #238636; color: white; }
+.btn.primary:hover { background: #2ea043; }
+#fx-bar { display: flex; align-items: center; gap: 8px; padding: 4px 16px; background: #0d1117; border-bottom: 1px solid #21262d; font-size: 12px; }
+#fx-bar label { color: #8b949e; }
+#fx-input { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 4px 8px; color: #c9d1d9; font-family: inherit; font-size: 12px; }
+#status { margin-left: auto; color: #8b949e; font-size: 11px; }
+#grid-container { overflow: auto; height: calc(100vh - 120px); }
+table { border-collapse: collapse; width: max-content; }
+th, td { border: 1px solid #21262d; padding: 2px 8px; min-width: 100px; max-width: 200px; font-size: 12px; text-align: right; white-space: nowrap; }
+th { background: #161b22; color: #8b949e; position: sticky; top: 0; z-index: 1; font-weight: normal; }
+td.row-header { background: #161b22; color: #8b949e; text-align: center; min-width: 40px; position: sticky; left: 0; z-index: 2; }
+td.selected { outline: 2px solid #58a6ff; outline-offset: -2px; }
+td.fitness-high { background: #0e4429; }
+td.fitness-mid { background: #161b22; }
+td.fitness-low { background: #3d1a1a; }
+td .strategy { color: #79c0ff; }
+td .value { font-weight: bold; }
+.cell-tag { font-size: 10px; color: #8b949e; margin-left: 4px; }
+#stats-bar { display: flex; gap: 24px; padding: 6px 16px; background: #161b22; border-top: 1px solid #30363d; font-size: 11px; color: #8b949e; position: fixed; bottom: 0; width: 100%; }
+#stats-bar span.val { color: #58a6ff; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h1>⬡ SuperInstance</h1>
+  <button class="btn primary" onclick="evolve()">▶ Evolve</button>
+  <button class="btn" onclick="mutate()">⟳ Mutate</button>
+  <button class="btn" onclick="selectAll()">Select All</button>
+  <button class="btn" onclick="sort(true)">Sort ↑</button>
+  <button class="btn" onclick="sort(false)">Sort ↓</button>
+  <button class="btn" onclick="cull()">☠ Cull Weak</button>
+  <button class="btn" onclick="addEnv()">+ Environment</button>
+  <button class="btn" onclick="addAgents()">+ Agents</button>
+  <span style="margin-left:auto;color:#8b949e;font-size:11px">Gen: <span id="gen-count">0</span> | Agents: <span id="agent-count">0</span> | Species: <span id="species-count">0</span></span>
+</div>
+<div id="fx-bar">
+  <label>fx</label>
+  <input id="fx-input" placeholder="=EVOLVE(B2:B100, 50) or =BEST(B:B) or =SPECIES(A:A)" />
+  <div id="status">Ready</div>
+</div>
+<div id="grid-container">
+  <table id="grid"><thead><tr id="header-row"></tr></thead><tbody id="grid-body"></tbody></table>
+</div>
+<div id="stats-bar">
+  <div>Best: <span class="val" id="s-best">—</span></div>
+  <div>Worst: <span class="val" id="s-worst">—</span></div>
+  <div>Mean: <span class="val" id="s-mean">—</span></div>
+  <div>Diversity: <span class="val" id="s-diversity">—</span></div>
+  <div>Entropy: <span class="val" id="s-entropy">—</span></div>
+</div>
+
+<script>
+// Ternary agent core — runs in browser, no server needed
+class TernaryAgent {
+  constructor(weights) { this.w = weights || this.random(); }
+  random() { return Array.from({length:4}, () => [-1,0,1][Math.floor(Math.random()*3)]); }
+  scores() { return this.w.map(x => (x+1)/2*0.6+0.2); }
+  bestAction() { let s=this.scores(); return s.indexOf(Math.max(...s)); }
+  mutate() {
+    let c = [...this.w];
+    c[Math.floor(Math.random()*4)] = [-1,0,1][Math.floor(Math.random()*3)];
+    return new TernaryAgent(c);
+  }
+  toString() { return `[${this.w.join(',')}]`; }
+}
+
+class Environment {
+  constructor(name) {
+    this.name = name;
+    this.rewards = Array.from({length:4}, () => Math.random()*0.8+0.1);
+  }
+  evaluate(agent) { return this.rewards[agent.bestAction()]; }
+  stochastic(agent) { return Math.random() < this.evaluate(agent) ? 1 : 0; }
+}
+
+// State
+let agents = [];
+let envs = [];
+let outcomes = []; // envs × agents → avg outcome
+let generation = 0;
+let selectedCell = null;
+
+function init() {
+  // 20 agents, 5 environments
+  agents = Array.from({length:20}, () => new TernaryAgent());
+  envs = [
+    new Environment('Market₁'), new Environment('Market₂'),
+    new Environment('Negotiate'), new Environment('Navigate'),
+    new Environment('Ecology')
+  ];
+  computeOutcomes();
+  render();
+}
+
+function computeOutcomes() {
+  outcomes = [];
+  for (let e = 0; e < envs.length; e++) {
+    outcomes[e] = [];
+    for (let a = 0; a < agents.length; a++) {
+      // Run 50 stochastic rounds
+      let wins = 0;
+      for (let r = 0; r < 50; r++) wins += envs[e].stochastic(agents[a]);
+      outcomes[e][a] = wins / 50;
+    }
+  }
+}
+
+function render() {
+  let headerRow = document.getElementById('header-row');
+  headerRow.innerHTML = '<th></th><th>Strategy</th>' + envs.map(e => `<th>${e.name}</th>`).join('') + '<th>Avg</th>';
+  
+  let body = document.getElementById('grid-body');
+  body.innerHTML = '';
+  
+  for (let a = 0; a < agents.length; a++) {
+    let tr = document.createElement('tr');
+    tr.innerHTML = `<td class="row-header">${a+1}</td>`;
+    
+    // Strategy column
+    let stratCell = document.createElement('td');
+    stratCell.innerHTML = `<span class="strategy">${agents[a].toString()}</span>`;
+    stratCell.style.textAlign = 'left';
+    tr.appendChild(stratCell);
+    
+    // Environment columns
+    let avgSum = 0;
+    for (let e = 0; e < envs.length; e++) {
+      let td = document.createElement('td');
+      let v = outcomes[e][a];
+      avgSum += v;
+      let cls = v > 0.6 ? 'fitness-high' : v < 0.4 ? 'fitness-low' : 'fitness-mid';
+      td.className = cls;
+      td.innerHTML = `<span class="value">${v.toFixed(3)}</span>`;
+      td.onclick = () => selectCell(e, a);
+      td.dataset.env = e;
+      td.dataset.agent = a;
+      tr.appendChild(td);
+    }
+    
+    // Avg column
+    let avgCell = document.createElement('td');
+    let avg = avgSum / envs.length;
+    avgCell.innerHTML = `<span class="value">${avg.toFixed(3)}</span>`;
+    avgCell.style.fontWeight = 'bold';
+    avgCell.style.color = avg > 0.55 ? '#3fb950' : avg < 0.4 ? '#f85149' : '#c9d1d9';
+    tr.appendChild(avgCell);
+    
+    body.appendChild(tr);
+  }
+  
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('gen-count').textContent = generation;
+  document.getElementById('agent-count').textContent = agents.length;
+  
+  let allOutcomes = outcomes.flat();
+  let unique = new Set(agents.map(a => a.toString())).size;
+  document.getElementById('species-count').textContent = unique;
+  
+  let best = Math.max(...allOutcomes);
+  let worst = Math.min(...allOutcomes);
+  let mean = allOutcomes.reduce((s,v) => s+v, 0) / allOutcomes.length;
+  
+  document.getElementById('s-best').textContent = best.toFixed(3);
+  document.getElementById('s-worst').textContent = worst.toFixed(3);
+  document.getElementById('s-mean').textContent = mean.toFixed(3);
+  document.getElementById('s-diversity').textContent = unique + '/' + agents.length;
+  
+  // Entropy
+  let hist = new Array(10).fill(0);
+  allOutcomes.forEach(v => hist[Math.min(9, Math.floor(v*10))]++);
+  let total = allOutcomes.length;
+  let entropy = -hist.filter(h=>h>0).reduce((s,h) => s + (h/total)*Math.log2(h/total), 0);
+  document.getElementById('s-entropy').textContent = entropy.toFixed(2) + ' bits';
+}
+
+function evolve() {
+  // Natural selection: keep top 50%, mutate children
+  let avgs = agents.map((a, i) => {
+    return outcomes.reduce((s, row) => s + row[i], 0) / envs.length;
+  });
+  
+  let ranked = agents.map((a, i) => ({agent: a, score: avgs[i]}))
+    .sort((a, b) => b.score - a.score);
+  
+  let survivors = ranked.slice(0, Math.ceil(ranked.length / 2)).map(r => r.agent);
+  let children = survivors.map(a => a.mutate());
+  agents = [...survivors, ...children];
+  
+  generation++;
+  computeOutcomes();
+  render();
+  setStatus(`Evolved gen ${generation}. ${survivors.length} survived, ${children.length} born.`);
+}
+
+function mutate() {
+  let count = Math.ceil(agents.length * 0.3);
+  for (let i = 0; i < count; i++) {
+    let idx = Math.floor(Math.random() * agents.length);
+    agents[idx] = agents[idx].mutate();
+  }
+  computeOutcomes();
+  render();
+  setStatus(`Mutated ${count} agents.`);
+}
+
+function sort(ascending) {
+  let avgs = agents.map((a, i) => ({
+    agent: a,
+    score: outcomes.reduce((s, row) => s + row[i], 0) / envs.length
+  }));
+  avgs.sort((a, b) => ascending ? a.score - b.score : b.score - a.score);
+  agents = avgs.map(a => a.agent);
+  computeOutcomes();
+  render();
+  setStatus(ascending ? 'Sorted ascending by fitness.' : 'Sorted descending — strongest first.');
+}
+
+function cull() {
+  let avgs = agents.map((a, i) => ({
+    agent: a,
+    score: outcomes.reduce((s, row) => s + row[i], 0) / envs.length
+  }));
+  avgs.sort((a, b) => b.score - a.score);
+  agents = avgs.slice(0, Math.ceil(avgs.length * 0.75)).map(a => a.agent);
+  computeOutcomes();
+  render();
+  setStatus(`Culled weakest 25%. ${agents.length} survivors.`);
+}
+
+function addEnv() {
+  let names = ['Trading', 'Defense', 'Agriculture', 'Energy', 'Social', 'Climate', 'Bio', 'Logistics', 'Supply', 'Urban'];
+  let name = names[envs.length % names.length] + (Math.floor(envs.length / names.length) || '');
+  envs.push(new Environment(name));
+  computeOutcomes();
+  render();
+  setStatus(`Added environment: ${name}`);
+}
+
+function addAgents() {
+  for (let i = 0; i < 10; i++) agents.push(new TernaryAgent());
+  computeOutcomes();
+  render();
+  setStatus(`Added 10 agents. Total: ${agents.length}`);
+}
+
+function selectCell(env, agent) {
+  document.querySelectorAll('td.selected').forEach(td => td.classList.remove('selected'));
+  // Highlight column
+  document.querySelectorAll(`td[data-env="${env}"]`).forEach(td => td.classList.add('selected'));
+}
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+// Init
+init();
+</script>
+</body>
+</html>
