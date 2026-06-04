@@ -1,0 +1,17 @@
+{
+  "version": "v4-context-dependent",
+  "avoid_pct": 0.001,
+  "choose_pct": 0.0,
+  "species": 1,
+  "top_species": [
+    [
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      500
+    ]
+  ]
+}
