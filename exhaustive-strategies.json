@@ -1,0 +1,217 @@
+{
+  "n_strategies": 81,
+  "n_environments": 5,
+  "best": {
+    "strategy": [
+      -1,
+      -1,
+      -1,
+      0
+    ],
+    "best_action": 3,
+    "rewards": {
+      "S&P 500": 0.579,
+      "Crypto": 0.793,
+      "Negotiation": 0.876,
+      "Navigation": 0.247,
+      "Ecology": 0.333
+    },
+    "avg": 0.566
+  },
+  "worst": {
+    "strategy": [
+      0,
+      0,
+      1,
+      1
+    ],
+    "best_action": 2,
+    "rewards": {
+      "S&P 500": 0.686,
+      "Crypto": 0.146,
+      "Negotiation": 0.116,
+      "Navigation": 0.245,
+      "Ecology": 0.446
+    },
+    "avg": 0.328
+  },
+  "top10": [
+    {
+      "strategy": [
+        -1,
+        -1,
+        -1,
+        0
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        -1,
+        -1,
+        -1,
+        1
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        -1,
+        -1,
+        0,
+        1
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        -1,
+        0,
+        -1,
+        1
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        -1,
+        0,
+        0,
+        1
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        0,
+        -1,
+        -1,
+        1
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        0,
+        -1,
+        0,
+        1
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        0,
+        0,
+        -1,
+        1
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "best_action": 3,
+      "rewards": {
+        "S&P 500": 0.579,
+        "Crypto": 0.793,
+        "Negotiation": 0.876,
+        "Navigation": 0.247,
+        "Ecology": 0.333
+      },
+      "avg": 0.566
+    },
+    {
+      "strategy": [
+        -1,
+        0,
+        -1,
+        -1
+      ],
+      "best_action": 1,
+      "rewards": {
+        "S&P 500": 0.861,
+        "Crypto": 0.225,
+        "Negotiation": 0.666,
+        "Navigation": 0.27,
+        "Ecology": 0.52
+      },
+      "avg": 0.508
+    }
+  ],
+  "species": {
+    "Specialist (3 neg, 1 pos)": 32,
+    "Balanced (2 neg, 2 pos)": 24,
+    "Aggressive (1 neg, 3 pos)": 8,
+    "Avoidant (all neg/zero)": 16,
+    "Neutral-heavy": 9
+  }
+}
