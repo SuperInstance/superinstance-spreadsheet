@@ -9,3 +9,5 @@ __pycache__/
 .env
 credentials.*
 *.secret
+target/
+Cargo.lock
